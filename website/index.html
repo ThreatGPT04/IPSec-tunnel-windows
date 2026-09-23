@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tunnel Hive — IKEv2 on Windows</title>
+  <meta name="description" content="A field-tested PowerShell toolkit for IPsec IKEv2 site-to-site VPN tunnels on Windows Server RRAS." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800;900&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,4 90,27 90,73 50,96 10,73 10,27' fill='%23ffb81c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <!-- Loader: "negotiating" the page like an SA -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__hex"></div>
+    <div class="loader__line mono">IKE_SA_INIT <span id="loaderPct">000</span>%</div>
+  </div>
+
+  <div class="cursor" id="cursor" aria-hidden="true"><span class="cursor__label" id="cursorLabel"></span></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="nav__logo" href="#top" data-cursor="home">
+      <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true"><polygon points="50,4 90,27 90,73 50,96 10,73 10,27" /></svg>
+      <span>TUNNEL/HIVE</span>
+    </a>
+    <nav class="nav__links mono">
+      <a href="#breaks">Breaks</a>
+      <a href="#build">Build</a>
+      <a href="#forge">Forge</a>
+      <a href="#errors">Errors</a>
+    </nav>
+    <a class="nav__cta mono" href="https://github.com/ThreatGPT04/IPSec-tunnel-windows" target="_blank" rel="noopener" data-cursor="repo">GitHub ↗</a>
+  </header>
+
+  <main id="top">
+
+    <!-- HERO -->
+    <section class="hero">
+      <canvas id="hive" class="hero__hive" aria-hidden="true"></canvas>
+      <div class="hero__meta mono">
+        <span>● Windows Server 2019 / 2022</span>
+        <span>RRAS · IKEv2 · PSK</span>
+      </div>
+      <h1 class="hero__title">
+        <span class="line"><span class="word">Build</span> <span class="word">the</span></span>
+        <span class="line"><span class="word outline">tunnel</span><span class="word dot">.</span></span>
+        <span class="line"><span class="word">Keep</span> <span class="word">it</span> <span class="word accent">up.</span></span>
+      </h1>
+      <div class="hero__foot">
+        <p class="hero__lede">A field-tested PowerShell toolkit for IPsec IKEv2 site-to-site VPNs on Windows. It comes from one live deployment against a Cisco ASA, and it records every error that deployment hit.</p>
+        <div class="hero__status mono" id="status">
+          <div><span class="k">Phase 1</span><span class="v" data-cycle="AES256|SHA384|ECP256">AES256</span></div>
+          <div><span class="k">Phase 2</span><span class="v" data-cycle="ESP|AES256|SHA256128|PFS ECP256">ESP</span></div>
+          <div><span class="k">State</span><span class="v ok">CONNECTED</span></div>
+        </div>
+      </div>
+      <a class="hero__scroll mono" href="#manifesto">scroll to encrypt ↓</a>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>IKEv2</span><i>⬢</i><span>AES256</span><i>⬢</i><span>SHA384</span><i>⬢</i><span>ECP256</span><i>⬢</i><span>PFS</span><i>⬢</i><span>RRAS</span><i>⬢</i><span>TRAFFIC SELECTORS</span><i>⬢</i><span>CISCO ASA</span><i>⬢</i>
+        <span>IKEv2</span><i>⬢</i><span>AES256</span><i>⬢</i><span>SHA384</span><i>⬢</i><span>ECP256</span><i>⬢</i><span>PFS</span><i>⬢</i><span>RRAS</span><i>⬢</i><span>TRAFFIC SELECTORS</span><i>⬢</i><span>CISCO ASA</span><i>⬢</i>
+      </div>
+    </div>
+
+    <!-- MANIFESTO: words light up on scroll -->
+    <section class="manifesto" id="manifesto">
+      <p class="mono eyebrow">[ 00 — the problem ]</p>
+      <p class="manifesto__text" id="manifestoText">Windows native IPsec in tunnel mode ignores the Phase 1 crypto you give it. It quietly falls back to DHGroup2, AES128 and SHA1 on every negotiation. You can script around it for days and it won't change. RRAS has its own IKEv2 stack, and that stack does honour a custom policy.</p>
+      <div class="terminal mono reveal">
+        <div class="terminal__bar"><i></i><i></i><i></i><span>PS C:\&gt;</span></div>
+        <pre><span class="c-dim">PS&gt;</span> netsh advfirewall consec show rule name="Primary-Tunnel" verbose
+<span class="c-dim">…</span>
+MainModeSecMethods:  <span class="c-bad strike-in">DHGroup2-AES128-SHA1</span>   <span class="c-dim"># always. regardless.</span></pre>
+      </div>
+    </section>
+
+    <!-- THREE BREAKS: stacking sticky cards -->
+    <section class="breaks" id="breaks">
+      <div class="section-head">
+        <p class="mono eyebrow">[ 01 — failure modes ]</p>
+        <h2 class="big">Three things<br/>that <em>will</em> break<br/>your tunnel.</h2>
+      </div>
+      <div class="stack">
+        <article class="card" style="--i:0">
+          <div class="card__num">01</div>
+          <div class="card__body">
+            <h3>Native IPsec ignores your Phase 1.</h3>
+            <p><code>-MainModeCryptoSet</code> doesn't exist on tunnel-mode rules. Custom sets get created but are never linked, and a 2019 → 2022 upgrade doesn't change that.</p>
+            <div class="card__fix mono"><span>FIX</span> Switch to RRAS and <code>Set-VpnS2SInterface -CustomPolicy</code></div>
+          </div>
+        </article>
+        <article class="card" style="--i:1">
+          <div class="card__num">02</div>
+          <div class="card__body">
+            <h3>Ghost rules still speak IKEv1.</h3>
+            <p>Native rules left over from earlier attempts keep firing IKEv1 next to your IKEv2. The ASA sees mixed traffic and fills its logs with <code>IKE MM</code> errors.</p>
+            <div class="card__fix mono"><span>FIX</span> <code>Get-NetIPsecRule | Remove-NetIPsecRule</code></div>
+          </div>
+        </article>
+        <article class="card" style="--i:2">
+          <div class="card__num">03</div>
+          <div class="card__body">
+            <h3>Wildcard selectors get rejected.</h3>
+            <p>By default RRAS proposes <code>0.0.0.0/0</code>. An ASA with a specific crypto map answers <em>“Crypto Map Policy not found.”</em></p>
+            <div class="card__fix mono"><span>FIX</span> Explicit <code>New-VpnTrafficSelector</code> (script 03)</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- BUILD: pinned horizontal scroll -->
+    <section class="build" id="build">
+      <div class="build__pin">
+        <div class="build__head">
+          <p class="mono eyebrow">[ 02 — the build ]</p>
+          <h2 class="big">Six scripts.<br/>One tunnel.</h2>
+          <div class="build__progress"><span id="buildBar"></span></div>
+        </div>
+        <div class="build__track" id="buildTrack">
+          <div class="step"><span class="step__n">01</span><h4>setup-rras</h4><p>Install RemoteAccess and Routing, then configure the server as a LAN router. If you skip the LAN router step, you get error 633.</p><code>Install-WindowsFeature RemoteAccess, Routing</code></div>
+          <div class="step"><span class="step__n">02</span><h4>create-tunnel</h4><p>Primary and backup S2S interfaces with a full custom policy, authenticated with a PSK read from the environment.</p><code>Add-VpnS2SInterface -Protocol Ikev2</code></div>
+          <div class="step"><span class="step__n">03</span><h4>traffic-selectors</h4><p>Replace the wildcard <code>0.0.0.0/0</code> selectors with exact local and remote ranges. This is the fix for the Cisco "Crypto Map Policy not found" rejection.</p><code>New-VpnTrafficSelector</code></div>
+          <div class="step"><span class="step__n">04</span><h4>verify-tunnel</h4><p>Read back what RRAS actually negotiates, not just what you configured.</p><code>Get-VpnS2SInterface</code></div>
+          <div class="step"><span class="step__n">05</span><h4>test-connection</h4><p>Connect the tunnel and probe your application ports end to end.</p><code>Test-NetConnection -Port 443</code></div>
+          <div class="step"><span class="step__n">06</span><h4>cleanup</h4><p>Tear everything down, including leftover native rules.</p><code>Remove-VpnS2SInterface -Force</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORGE: interactive generator -->
+    <section class="forge" id="forge">
+      <div class="section-head">
+        <p class="mono eyebrow">[ 03 — tunnel forge ]</p>
+        <h2 class="big">Pick your crypto.<br/>Get the <span class="accent">PowerShell.</span></h2>
+      </div>
+      <div class="forge__grid">
+        <form class="forge__form" id="forgeForm" autocomplete="off">
+          <fieldset>
+            <legend class="mono">Endpoints</legend>
+            <label>Tunnel name<input name="name" value="VPN-Primary" /></label>
+            <label>Local server IP<input name="local" value="10.0.0.100" /></label>
+            <label>Remote gateway<input name="gw" value="203.0.113.1" /></label>
+            <label>Remote subnet start<input name="rs" value="10.1.0.0" /></label>
+            <label>Remote subnet end<input name="re" value="10.1.0.255" /></label>
+            <label>Remote subnet / mask<input name="subnet" value="10.1.0.0/24" /></label>
+          </fieldset>
+          <fieldset>
+            <legend class="mono">Phase 1 · IKE</legend>
+            <div class="chips" data-name="p1e"><button type="button">AES128</button><button type="button">AES192</button><button type="button" class="on">AES256</button></div>
+            <div class="chips" data-name="p1i"><button type="button">SHA256</button><button type="button" class="on">SHA384</button><button type="button">SHA512</button></div>
+            <div class="chips" data-name="p1d"><button type="button">DH14</button><button type="button" class="on">ECP256</button><button type="button">ECP384</button></div>
+          </fieldset>
+          <fieldset>
+            <legend class="mono">Phase 2 · ESP</legend>
+            <div class="chips" data-name="p2e"><button type="button">AES128</button><button type="button">AES192</button><button type="button" class="on">AES256</button></div>
+            <div class="chips" data-name="p2i"><button type="button" class="on">SHA256128</button><button type="button">SHA384</button><button type="button">SHA512</button></div>
+            <div class="chips" data-name="p2p"><button type="button">DH14</button><button type="button" class="on">ECP256</button><button type="button">ECP384</button></div>
+          </fieldset>
+        </form>
+        <div class="forge__out">
+          <div class="terminal mono">
+            <div class="terminal__bar"><i></i><i></i><i></i><span>forge.ps1</span><button class="copy" id="copyBtn" type="button" data-cursor="copy">copy</button></div>
+            <pre id="forgeOut"></pre>
+          </div>
+          <p class="note mono">PSK is never embedded. Set <code>$env:VPN_PSK</code> in the session first.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ERRORS: codes as giant hover rows -->
+    <section class="errors" id="errors">
+      <div class="section-head">
+        <p class="mono eyebrow">[ 04 — field notes ]</p>
+        <h2 class="big">Errors we<br/>already hit.</h2>
+      </div>
+      <ul class="errlist">
+        <li class="err" data-cursor="open">
+          <button class="err__row" type="button"><span class="err__code">13816</span><span class="err__name">IKE auth failed</span><span class="err__plus">+</span></button>
+          <div class="err__detail"><p>Phase 1 SA_INIT succeeds and authentication fails. In production this is usually a traffic-selector mismatch (wildcards), and less often a PSK mismatch. Check the selectors first, then compare the PSK character by character.</p></div>
+        </li>
+        <li class="err" data-cursor="open">
+          <button class="err__row" type="button"><span class="err__code">633</span><span class="err__name">Port already in use</span><span class="err__plus">+</span></button>
+          <div class="err__detail"><p>RRAS isn't configured as a LAN router. Open <code>rrasmgmt.msc</code>, choose Configure → Custom → LAN Routing → Finish, then start the service.</p></div>
+        </li>
+        <li class="err" data-cursor="open">
+          <button class="err__row" type="button"><span class="err__code">IKE MM</span><span class="err__name">Cisco sees IKEv1</span><span class="err__plus">+</span></button>
+          <div class="err__detail"><p>Main Mode is IKEv1. Old native Windows IPsec rules are still active, so remove every rule, main-mode crypto set and quick-mode crypto set.</p></div>
+        </li>
+        <li class="err" data-cursor="open">
+          <button class="err__row" type="button"><span class="err__code">0x80070057</span><span class="err__name">Invalid argument</span><span class="err__plus">+</span></button>
+          <div class="err__detail"><p><code>Set-NetIPsecRule -KeyModule IKEv2</code> on tunnel mode. There's no workaround for it on native IPsec, so use RRAS instead.</p></div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- CRYPTO MATRIX -->
+    <section class="matrix">
+      <p class="mono eyebrow">[ 05 — supported ]</p>
+      <div class="matrix__grid">
+        <div class="cell"><span class="mono">P1 · Enc</span><b>AES 128 / 192 / 256</b></div>
+        <div class="cell"><span class="mono">P1 · Int</span><b>SHA 256 / 384 / 512</b></div>
+        <div class="cell"><span class="mono">P1 · DH</span><b>14 · 19 · 20 · 21</b></div>
+        <div class="cell"><span class="mono">P2 · Proto</span><b>ESP</b></div>
+        <div class="cell"><span class="mono">P2 · Enc</span><b>AES 128 / 192 / 256</b></div>
+        <div class="cell"><span class="mono">P2 · PFS</span><b>DH14 · ECP256 · ECP384</b></div>
+      </div>
+      <p class="matrix__note">RRAS labels SHA-256 as <code>SHA256128</code>. Wireshark confirms it sends <code>AUTH_HMAC_SHA2_256_128</code>, as specified in RFC 4307.</p>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    <a class="foot__huge" href="https://github.com/ThreatGPT04/IPSec-tunnel-windows" target="_blank" rel="noopener" data-cursor="clone">
+      <span>git clone</span><span class="outline">the hive ↗</span>
+    </a>
+    <div class="foot__row mono">
+      <span>MIT License</span>
+      <span>Built from a real deployment</span>
+      <a href="#top">Back to top ↑</a>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
