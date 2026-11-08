@@ -2,7 +2,7 @@
 
 A complete PowerShell toolkit for setting up, verifying, and troubleshooting IPsec IKEv2 site-to-site VPN tunnels on Windows Server using RRAS.
 
-Built and tested during a real-world deployment connecting a Windows trading server to a remote financial gateway running Cisco ASA. Every script, every error, and every fix in this repo came from that live deployment.
+Built and tested during a real-world deployment connecting a Windows trading server to a remote gateway running Cisco ASA. Every script, every error, and every fix in this repo came from that live deployment.
 
 ---
 
